@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tom's Traveller Tracker — Space Combat v6.5</title>
+    <meta name="description" content="Interactive space combat tracker for the Traveller RPG by Mongoose — Tom's homebrew rules v6.5. Track turns, ships, power, attacks, critical hits, and crew actions.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+
+    <!-- ═══════ HEADER ═══════ -->
+    <header class="app-header">
+        <div class="logo">
+            <span class="logo-icon">🚀</span>
+            <div>
+                <h1>Tom's Traveller Tracker</h1>
+                <div class="subtitle">Space Combat v6.5 — Mongoose Traveller</div>
+            </div>
+        </div>
+        <div class="header-controls">
+            <div class="turn-counter" id="turnCounter">Turn 1</div>
+            <button class="btn btn-primary btn-sm" id="btnNextStep" title="Advance to next step">
+                ▶ Next Step
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btnNewTurn" title="Start new turn">
+                ⟳ New Turn
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btnReset" title="Reset encounter">
+                ✕ Reset
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════ TAB NAV ═══════ -->
+    <nav class="tab-nav" id="tabNav">
+        <button class="tab-btn active" data-tab="turn">
+            <span class="tab-icon">📋</span> Turn Sequence
+        </button>
+        <button class="tab-btn" data-tab="ships">
+            <span class="tab-icon">🛸</span> Ships
+        </button>
+        <button class="tab-btn" data-tab="power">
+            <span class="tab-icon">⚡</span> Power
+        </button>
+        <button class="tab-btn" data-tab="combat">
+            <span class="tab-icon">⚔️</span> Combat
+        </button>
+        <button class="tab-btn" data-tab="crits">
+            <span class="tab-icon">💥</span> Critical Hits
+        </button>
+        <button class="tab-btn" data-tab="crew">
+            <span class="tab-icon">👥</span> Crew Actions
+        </button>
+        <button class="tab-btn" data-tab="reference">
+            <span class="tab-icon">📖</span> Reference
+        </button>
+    </nav>
+
+    <!-- ═══════ MAIN CONTENT ═══════ -->
+    <main class="main-content">
+
+        <!-- ── Turn Sequence ──────────── -->
+        <section class="tab-panel active" id="panel-turn">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">📋</span> Turn Sequence</h2>
+                    <div id="currentStepBadge" class="badge">Tactics &gt; Initiative</div>
+                </div>
+                <div class="turn-stepper" id="turnStepper">
+                    <!-- Rendered by turn.js -->
+                </div>
+            </div>
+
+            <!-- G-Force Calculator -->
+            <div class="panel phase-maneuver">
+                <div class="panel-header">
+                    <h2><span class="icon">🚀</span> G-Force Calculator</h2>
+                </div>
+                <div class="input-row mb-md">
+                    <div class="form-group">
+                        <label>Thrust (hexes)</label>
+                        <input type="number" id="gfThrust" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Velocity (hexes)</label>
+                        <input type="number" id="gfVelocity" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Movement</label>
+                        <input type="number" id="gfTotal" readonly value="0">
+                    </div>
+                    <div class="form-group" style="flex: 0 0 auto;">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-primary" id="btnCalcGForce">Calculate</button>
+                    </div>
+                </div>
+                <div id="gforceResult" class="hidden">
+                    <!-- Rendered by turn.js -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Ships ──────────────────── -->
+        <section class="tab-panel" id="panel-ships">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🛸</span> Ships</h2>
+                    <button class="btn btn-primary" id="btnAddShip">+ Add Ship</button>
+                </div>
+                <div class="ship-grid" id="shipGrid">
+                    <div class="empty-state" id="shipsEmpty">
+                        <div class="empty-icon">🛸</div>
+                        <p>No ships in the encounter yet. Add a ship to get started.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Power Allocation ───────── -->
+        <section class="tab-panel" id="panel-power">
+            <div class="panel phase-tactics">
+                <div class="panel-header">
+                    <h2><span class="icon">⚡</span> Power Allocation</h2>
+                    <div class="flex gap-sm items-center">
+                        <label style="margin: 0;">Ship:</label>
+                        <select id="powerShipSelect" style="width: 200px;"></select>
+                    </div>
+                </div>
+                <div id="powerPanel">
+                    <div class="empty-state">
+                        <div class="empty-icon">⚡</div>
+                        <p>Add a ship first, then allocate power here.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Combat ─────────────────── -->
+        <section class="tab-panel" id="panel-combat">
+            <!-- Attack Modifier Calculator -->
+            <div class="panel phase-attack">
+                <div class="panel-header">
+                    <h2><span class="icon">⚔️</span> Attack Roll</h2>
+                    <div class="flex gap-sm items-center">
+                        <label style="margin: 0;">Attacker:</label>
+                        <select id="combatAttackerSelect" style="width: 160px;"></select>
+                        <label style="margin: 0;">Target:</label>
+                        <select id="combatTargetSelect" style="width: 160px;"></select>
+                    </div>
+                </div>
+                <div class="input-row mb-md">
+                    <div class="form-group">
+                        <label>Gunner Skill</label>
+                        <input type="number" id="atkGunnerSkill" value="0" min="-3" max="6">
+                    </div>
+                    <div class="form-group">
+                        <label>DEX Mod</label>
+                        <input type="number" id="atkDexMod" value="0" min="-3" max="3">
+                    </div>
+                    <div class="form-group">
+                        <label>Fire Control</label>
+                        <input type="number" id="atkFireControl" value="0" min="0" max="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Lock</label>
+                        <select id="atkTargetLock">
+                            <option value="0">No Lock</option>
+                            <option value="4">Locked (+4)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-row mb-md">
+                    <div class="form-group">
+                        <label>Range Band</label>
+                        <select id="atkRange">
+                            <option value="2">Close (+2)</option>
+                            <option value="2">Short (+2)</option>
+                            <option value="0" selected>Medium (0)</option>
+                            <option value="0">Long (0)</option>
+                            <option value="-2">Very Long (-2)</option>
+                            <option value="-4">Distant (-4)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Size</label>
+                        <select id="atkTargetSize">
+                            <option value="0">Normal</option>
+                            <option value="2">Large (+2)</option>
+                            <option value="4">Very Large (+4)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Speed Diff (5+)</label>
+                        <select id="atkSpeedDiff">
+                            <option value="0" selected>No</option>
+                            <option value="-2">Yes (-2)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Evasive EP</label>
+                        <input type="number" id="atkEvasive" value="0" min="0" max="3">
+                    </div>
+                </div>
+                <div class="input-row mb-md">
+                    <div class="form-group">
+                        <label>Outside Arc</label>
+                        <select id="atkArc">
+                            <option value="0">In Arc</option>
+                            <option value="-2">Outside (-2)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Evade Program</label>
+                        <input type="number" id="atkEvadeProg" value="0" min="0" max="3">
+                    </div>
+                    <div class="form-group">
+                        <label>Other DM</label>
+                        <input type="number" id="atkOtherDM" value="0" min="-10" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Called Shot</label>
+                        <select id="atkCalledShot">
+                            <option value="0">No</option>
+                            <option value="-2">Yes (-2)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modifier-calc" id="modifierSummary">
+                    <!-- Rendered by combat.js -->
+                </div>
+
+                <div class="flex gap-md mt-md items-center">
+                    <button class="btn btn-danger btn-lg" id="btnAttackRoll">🎲 Roll Attack</button>
+                    <div class="dice-box">
+                        <span class="dice-result" id="attackDiceResult">—</span>
+                    </div>
+                    <div id="attackOutcome" style="font-family: var(--font-display); font-size: 0.85rem;"></div>
+                </div>
+            </div>
+
+            <!-- Damage Resolver -->
+            <div class="panel phase-attack">
+                <div class="panel-header">
+                    <h2><span class="icon">💥</span> Damage Resolver</h2>
+                </div>
+                <div class="input-row mb-md">
+                    <div class="form-group">
+                        <label>Weapon Damage Dice</label>
+                        <input type="number" id="dmgDice" value="2" min="1" max="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Damage Multiplier</label>
+                        <select id="dmgMultiplier">
+                            <option value="1">×1 (Turret)</option>
+                            <option value="3">×3 (Barbette)</option>
+                            <option value="10">×10 (Small Bay)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>AP Value</label>
+                        <input type="number" id="dmgAP" value="0" min="0" max="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Armor</label>
+                        <input type="number" id="dmgArmor" value="0" min="0" max="50">
+                    </div>
+                </div>
+                <div class="input-row mb-md">
+                    <div class="form-group">
+                        <label>Attack Effect</label>
+                        <input type="number" id="dmgEffect" value="0" min="-10" max="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Hull (Starting)</label>
+                        <input type="number" id="dmgHullStart" value="100" min="1">
+                    </div>
+                    <div class="form-group" style="flex: 0 0 auto;">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-danger" id="btnRollDamage">🎲 Roll Damage</button>
+                    </div>
+                </div>
+                <div id="damageResult" class="hidden">
+                    <!-- Rendered by combat.js -->
+                </div>
+            </div>
+
+            <!-- Reactions Quick Reference -->
+            <div class="panel phase-attack">
+                <div class="panel-header">
+                    <h2><span class="icon">🛡️</span> Reactions Quick Reference</h2>
+                </div>
+                <div id="reactionsRef">
+                    <!-- Rendered by combat.js -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Critical Hits ──────────── -->
+        <section class="tab-panel" id="panel-crits">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">💥</span> Critical Hit Roller</h2>
+                </div>
+                <div class="input-row mb-md">
+                    <div class="form-group">
+                        <label>Attack Effect</label>
+                        <input type="number" id="critEffect" value="6" min="0" max="20">
+                    </div>
+                    <div class="form-group" style="flex: 0 0 auto;">
+                        <label>&nbsp;</label>
+                        <button class="btn btn-danger" id="btnRollCrit">🎲 Roll Critical Hit</button>
+                    </div>
+                </div>
+                <div id="critResult" class="hidden">
+                    <!-- Rendered by crits.js -->
+                </div>
+            </div>
+
+            <!-- Per-Ship Crit Tracker -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">📊</span> Ship Critical Hit Tracker</h2>
+                    <div class="flex gap-sm items-center">
+                        <label style="margin: 0;">Ship:</label>
+                        <select id="critShipSelect" style="width: 200px;"></select>
+                    </div>
+                </div>
+                <div id="critTrackerPanel">
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <p>Add a ship to track critical hits.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Critical Hit Effects Table -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">📋</span> Critical Hit Effects Reference</h2>
+                    <button class="btn btn-secondary btn-sm" id="btnToggleCritTable">Show/Hide</button>
+                </div>
+                <div id="critEffectsTable" class="hidden">
+                    <!-- Rendered by crits.js -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Crew Actions ───────────── -->
+        <section class="tab-panel" id="panel-crew">
+            <div class="panel phase-crew">
+                <div class="panel-header">
+                    <h2><span class="icon">👥</span> Crew Actions</h2>
+                    <div class="flex gap-sm items-center">
+                        <span style="font-family: var(--font-display); font-size: 0.7rem; color: var(--text-muted);">LIMIT: 6 PER TURN</span>
+                    </div>
+                </div>
+
+                <div class="action-budget mb-md" id="actionBudget">
+                    <!-- 6 pips rendered by crew.js -->
+                </div>
+
+                <div class="action-list" id="actionList">
+                    <!-- Rendered by crew.js -->
+                </div>
+
+                <!-- Quick Dice for crew checks -->
+                <div class="mt-lg">
+                    <div class="panel-header">
+                        <h2><span class="icon">🎲</span> Quick Skill Check</h2>
+                    </div>
+                    <div class="input-row mb-md">
+                        <div class="form-group">
+                            <label>Target Number</label>
+                            <select id="crewCheckTarget">
+                                <option value="4">Easy (4+)</option>
+                                <option value="6">Routine (6+)</option>
+                                <option value="8" selected>Average (8+)</option>
+                                <option value="10">Difficult (10+)</option>
+                                <option value="12">Very Difficult (12+)</option>
+                                <option value="14">Formidable (14+)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Total DM</label>
+                            <input type="number" id="crewCheckDM" value="0" min="-10" max="15">
+                        </div>
+                        <div class="form-group" style="flex: 0 0 auto;">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" id="btnCrewCheck">🎲 Roll</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-md items-center">
+                        <div class="dice-box">
+                            <span class="dice-result" id="crewDiceResult">—</span>
+                        </div>
+                        <div id="crewCheckOutcome" style="font-family: var(--font-display); font-size: 0.85rem;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Reference ──────────────── -->
+        <section class="tab-panel" id="panel-reference">
+            <!-- Weapons: Turrets -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🔫</span> Turrets & Fixed Mounts (×1 Damage)</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableWeaponsTurret"></table>
+                </div>
+            </div>
+
+            <!-- Weapons: Barbettes -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🔫</span> Barbettes (×3 Damage)</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableWeaponsBarbette"></table>
+                </div>
+            </div>
+
+            <!-- Weapons: Small Bays -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🔫</span> Small Bay Weapons (×10 Damage)</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableWeaponsBay"></table>
+                </div>
+            </div>
+
+            <!-- Missiles -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🚀</span> Missile Salvos</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableMissiles"></table>
+                </div>
+            </div>
+
+            <!-- Torpedoes -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">💣</span> Torpedo Salvos</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableTorpedoes"></table>
+                </div>
+            </div>
+
+            <!-- Point Defense -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🛡️</span> Point Defense Batteries</h2>
+                </div>
+                <div style="overflow-x: auto; margin-bottom: var(--space-md);">
+                    <h3 class="mb-md" style="color: var(--text-secondary); font-size: 0.8rem;">Laser Batteries</h3>
+                    <table class="data-table" id="tablePDLaser"></table>
+                </div>
+                <div style="overflow-x: auto;">
+                    <h3 class="mb-md" style="color: var(--text-secondary); font-size: 0.8rem;">Gauss Batteries</h3>
+                    <table class="data-table" id="tablePDGauss"></table>
+                </div>
+            </div>
+
+            <!-- Screens -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🛡️</span> Screens</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableScreens"></table>
+                </div>
+            </div>
+
+            <!-- Sand Canisters -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🏖️</span> Sand Caster Canisters</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableSand"></table>
+                </div>
+            </div>
+
+            <!-- Range Bands -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">📏</span> Range Bands</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableRanges"></table>
+                </div>
+            </div>
+
+            <!-- Map Terrain -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🪨</span> Map Terrain</h2>
+                </div>
+                <h3 class="mb-md" style="color: var(--text-secondary); font-size: 0.8rem;">Asteroid Fields</h3>
+                <div style="overflow-x: auto; margin-bottom: var(--space-md);">
+                    <table class="data-table" id="tableAsteroids"></table>
+                </div>
+                <h3 class="mb-md" style="color: var(--text-secondary); font-size: 0.8rem;">Celestial Bodies</h3>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableFeatures"></table>
+                </div>
+            </div>
+
+            <!-- Movement Actions -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">🏃</span> Movement Actions</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableMovement"></table>
+                </div>
+            </div>
+
+            <!-- G-Force Reference -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2><span class="icon">💨</span> G-Force Table</h2>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="tableGForce"></table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ═══════ FOOTER ═══════ -->
+    <footer class="app-footer">
+        <p>Tom's Traveller Tracker &mdash; Space Combat v6.5 &mdash; Built for Mongoose Traveller</p>
+    </footer>
+
+</div>
+
+<!-- ═══════ MODALS ═══════ -->
+<!-- Add/Edit Ship Modal -->
+<div class="modal-overlay" id="shipModal">
+    <div class="modal modal-wide">
+        <div class="modal-header">
+            <h2 id="shipModalTitle">Add Ship</h2>
+            <button class="modal-close" id="shipModalClose">&times;</button>
+        </div>
+        <div class="input-row mb-md">
+            <div class="form-group" style="flex: 2;">
+                <label>Ship Name</label>
+                <input type="text" id="shipName" placeholder="ISS Venture">
+            </div>
+            <div class="form-group" style="flex: 2;">
+                <label>Ship Class</label>
+                <input type="text" id="shipClass" placeholder="Far Trader, 200t">
+            </div>
+            <div class="form-group">
+                <label>Side</label>
+                <select id="shipSide">
+                    <option value="friendly">Friendly</option>
+                    <option value="enemy">Enemy</option>
+                </select>
+            </div>
+        </div>
+        <div class="input-row mb-md">
+            <div class="form-group">
+                <label>Hull Points</label>
+                <input type="number" id="shipHull" min="1" value="80">
+            </div>
+            <div class="form-group">
+                <label>Armor</label>
+                <input type="number" id="shipArmor" min="0" value="4">
+            </div>
+            <div class="form-group">
+                <label>Max Thrust</label>
+                <input type="number" id="shipThrust" min="0" value="2">
+            </div>
+            <div class="form-group">
+                <label>Total EP</label>
+                <input type="number" id="shipPower" min="0" value="60">
+            </div>
+        </div>
+        <div class="input-row mb-md">
+            <div class="form-group">
+                <label>Crew Count</label>
+                <input type="number" id="shipCrew" min="1" value="10">
+            </div>
+            <div class="form-group">
+                <label>Sensor Grade</label>
+                <select id="shipSensorGrade">
+                    <option value="Civilian">Civilian</option>
+                    <option value="Military" selected>Military</option>
+                    <option value="Advanced">Advanced</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tonnage</label>
+                <input type="number" id="shipTonnage" min="1" value="200">
+            </div>
+            <div class="form-group">
+                <label>Fuel (tons)</label>
+                <input type="number" id="shipFuel" min="0" value="40">
+            </div>
+        </div>
+        <div class="flex gap-sm justify-between mt-lg">
+            <button class="btn btn-secondary" id="shipModalCancel">Cancel</button>
+            <button class="btn btn-primary" id="shipModalSave">Save Ship</button>
+        </div>
+        <input type="hidden" id="shipEditId" value="">
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══════ SCRIPTS ═══════ -->
+<script src="js/dice.js"></script>
+<script src="js/data.js"></script>
+<script src="js/ships.js"></script>
+<script src="js/turn.js"></script>
+<script src="js/power.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/crits.js"></script>
+<script src="js/crew.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
